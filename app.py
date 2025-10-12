@@ -1,6 +1,6 @@
 import os
 import asyncio
-from flask import Flask, request, Response
+from flask import Flask, request, Response, stream_with_context
 from pyrogram import Client, filters
 
 # === Telegram Config from Environment Variables ===
@@ -13,9 +13,11 @@ BASE_URL = os.environ.get("BASE_URL")
 app = Flask(__name__)
 bot = Client("instant_stream_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+
 @app.route("/")
 def home():
     return "✅ Instant Telegram Stream Bot Running!"
+
 
 # --- Handle media messages ---
 @bot.on_message(filters.video | filters.document)
@@ -24,6 +26,7 @@ async def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
+    # Use BASE_URL for proper streaming
     stream_url = f"{BASE_URL}/stream/{file_id}"
     await message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
@@ -32,22 +35,27 @@ async def handle_media(client, message):
         disable_web_page_preview=True
     )
 
+
 # --- Stream endpoint ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
+    @stream_with_context
     def generate():
         try:
-            for chunk in bot.stream_media(file_id):
+            # Download media in chunks from Telegram and yield to client
+            for chunk in bot.stream_media(file_id, block_size=1024*1024):  # 1MB chunks
                 yield chunk
         except Exception as e:
             print(f"❌ Stream Error: {e}")
 
     return Response(generate(), mimetype="video/mp4")
 
+
 # === Run Flask using PORT from Railway ===
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, threaded=True)
+
 
 if __name__ == "__main__":
     # Run Flask in separate thread

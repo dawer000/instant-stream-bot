@@ -1,19 +1,23 @@
-import threading
+import os
 from flask import Flask, request, Response
 from pyrogram import Client, filters
+import asyncio
 
-# === Telegram Config ===
-API_ID = 22121081
-API_HASH = "40aa45abc830f38901ac455674812256"
-BOT_TOKEN = "8425638442:AAFwGADH9rrv-Ov8Kv8dWk4CvHv8t8lUxi8"
+# === Telegram Config from Environment Variables ===
+API_ID = int(os.environ.get("API_ID", 22121081))
+API_HASH = os.environ.get("API_HASH", "40aa45abc830f38901ac455674812256")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8425638442:AAFwGADH9rrv-Ov8Kv8dWk4CvHv8t8lUxi8")
+BASE_URL = os.environ.get("BASE_URL", "https://your-railway-url.up.railway.app")
 
 # === Initialize Flask + Pyrogram ===
 app = Flask(__name__)
 bot = Client("instant_stream_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+
 @app.route("/")
 def home():
     return "✅ Instant Telegram Stream Bot Running!"
+
 
 # --- Handle media messages ---
 @bot.on_message(filters.video | filters.document)
@@ -22,8 +26,8 @@ def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
-    # Generate instant stream link
-    stream_url = f"http://127.0.0.1:8000/stream/{file_id}"
+    # Generate instant stream link using BASE_URL
+    stream_url = f"{BASE_URL}/stream/{file_id}"
     message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
         f"📁 `{file_name}`\n"
@@ -31,7 +35,8 @@ def handle_media(client, message):
         disable_web_page_preview=True
     )
 
-# --- Stream endpoint (instant play with chunks from Telegram) ---
+
+# --- Stream endpoint ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
     range_header = request.headers.get("Range", None)
@@ -46,11 +51,15 @@ def stream(file_id):
 
     return Response(generate(), mimetype="video/mp4")
 
-# --- Run Flask in background ---
+
+# === Run Flask using PORT from Railway ===
 def run_flask():
-    app.run(host="0.0.0.0", port=8000, threaded=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, threaded=True)
+
 
 if __name__ == "__main__":
+    # Run Flask + Pyrogram in asyncio loop
+    import threading
     threading.Thread(target=run_flask).start()
-    print("🚀 Instant Stream Bot Running at http://127.0.0.1:8000/")
     bot.run()

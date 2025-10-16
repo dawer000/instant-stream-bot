@@ -6,7 +6,7 @@ from pyrogram import Client, filters
 # === Telegram Config ===
 API_ID = 22121081
 API_HASH = "40aa45abc830f38901ac455674812256"
-BOT_TOKEN = "8425638442:AAFdXiLbKuN57hM4krrbIf0AT8OqJY0Pe3o"  # 🔹 Replace with your new token
+BOT_TOKEN = "8425638442:AAFdXiLbKuN57hM4krrbIf0AT8OqJY0Pe3o"
 
 # === Cloudflare Worker URL ===
 WORKER_URL = "https://moviestream.dawerraza068.workers.dev"
@@ -26,8 +26,12 @@ async def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
-    # 🔹 Direct Cloudflare Worker instant play link
-    stream_url = f"{WORKER_URL}/stream/{file_id}"
+    # Get Telegram file download URL
+    file = await client.get_media(file_id)
+    telegram_file_url = file.file_url
+
+    # Cloudflare Worker instant play URL
+    stream_url = f"{WORKER_URL}/stream?file_url={telegram_file_url}"
 
     await message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
@@ -36,24 +40,17 @@ async def handle_media(client, message):
         disable_web_page_preview=True
     )
 
-# --- Stream endpoint (Railway still handles original stream for Worker) ---
+# --- Optional: still keep Flask for Worker /stream route if needed ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
-    def generate():
-        try:
-            # 🔹 Use stream_media without await in sync context
-            for chunk in bot.stream_media(file_id):
-                yield chunk
-        except Exception as e:
-            print(f"❌ Stream Error: {e}")
-    return Response(generate(), mimetype="video/mp4")
+    return "Use Cloudflare Worker for instant streaming!"
 
-# --- Run Flask using Railway's dynamic PORT ---
+# --- Run Flask using Railway dynamic PORT ---
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, threaded=True)
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
-    print("🚀 Instant Stream Bot Running on Railway + Cloudflare Worker")
+    print("🚀 Instant Stream Bot Running on Railway + Worker")
     bot.run()

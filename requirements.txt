@@ -1,4 +1,3 @@
-flask
+Flask
 pyrogram
 tgcrypto
-gunicorn

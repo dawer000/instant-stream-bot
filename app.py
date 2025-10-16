@@ -36,11 +36,12 @@ async def handle_media(client, message):
         disable_web_page_preview=True
     )
 
-# --- Stream endpoint (Railway still handles original stream for Worker) ---
+# --- Stream endpoint (Railway still serves original stream for Worker) ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
     range_header = request.headers.get("Range", None)
     byte1, byte2 = 0, None
+
     if range_header:
         import re
         m = re.search(r'bytes=(\d+)-(\d*)', range_header)
@@ -52,7 +53,7 @@ def stream(file_id):
 
     def generate():
         try:
-            # Use offset/limit if needed
+            # Stream from Telegram directly, offset applied
             for chunk in bot.stream_media(file_id, offset=byte1):
                 yield chunk
         except Exception as e:
@@ -64,3 +65,15 @@ def stream(file_id):
         resp.headers.add('Accept-Ranges', 'bytes')
     return resp
 
+# --- Run Flask on Railway dynamic PORT ---
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, threaded=True)
+
+if __name__ == "__main__":
+    # Start Flask in background
+    threading.Thread(target=run_flask).start()
+    print("🚀 Instant Stream Bot Running on Railway + Worker")
+
+    # Start Pyrogram bot
+    bot.run()

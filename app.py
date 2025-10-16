@@ -18,18 +18,16 @@ def home():
 
 # --- Handle media messages ---
 @bot.on_message(filters.video | filters.document)
-def handle_media(client, message):
+async def handle_media(client, message):
     media = message.video or message.document
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
     # Railway public base URL (update this with your Railway app URL)
-  BASE_URL = "https://moviestream.dawerraza068.workers.dev"
-stream_url = f"{BASE_URL}/stream/{file_id}"
+    BASE_URL = "https://moviestream.dawerraza068.workers.dev"
+    stream_url = f"{BASE_URL}/stream/{file_id}"
 
-
-
-    message.reply_text(
+    await message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
         f"📁 `{file_name}`\n"
         f"🌐 Stream instantly here:\n👉 {stream_url}",
@@ -53,6 +51,9 @@ def run_flask():
     app.run(host="0.0.0.0", port=port, threaded=True)
 
 if __name__ == "__main__":
+    # Start Flask in a separate thread
     threading.Thread(target=run_flask).start()
     print("🚀 Instant Stream Bot Running on Railway")
+    
+    # Start Pyrogram bot
     bot.run()

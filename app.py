@@ -1,6 +1,6 @@
 import os
 import threading
-from flask import Flask, request, Response
+from flask import Flask
 from pyrogram import Client, filters
 
 # === Telegram Config ===
@@ -26,12 +26,11 @@ async def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
-    # Get Telegram file download URL
-    file = await client.get_media(file_id)
-    telegram_file_url = file.file_url
-
-    # Cloudflare Worker instant play URL
-    stream_url = f"{WORKER_URL}/stream?file_url={telegram_file_url}"
+    # Get Telegram file object
+    file = await client.get_file(file_id)
+    telegram_file_url = file.file_path  # direct path
+    # Cloudflare Worker instant-play link
+    stream_url = f"{WORKER_URL}/stream?file_url=https://api.telegram.org/file/bot{BOT_TOKEN}/{telegram_file_url}"
 
     await message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
@@ -39,11 +38,6 @@ async def handle_media(client, message):
         f"🌐 Stream instantly here:\n👉 {stream_url}",
         disable_web_page_preview=True
     )
-
-# --- Optional: still keep Flask for Worker /stream route if needed ---
-@app.route("/stream/<file_id>")
-def stream(file_id):
-    return "Use Cloudflare Worker for instant streaming!"
 
 # --- Run Flask using Railway dynamic PORT ---
 def run_flask():

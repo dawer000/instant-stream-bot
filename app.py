@@ -6,7 +6,7 @@ from pyrogram import Client, filters
 # === Telegram Config ===
 API_ID = 22121081
 API_HASH = "40aa45abc830f38901ac455674812256"
-BOT_TOKEN = "8425638442:AAFwGADH9rrv-Ov8Kv8dWk4CvHv8t8lUxi8"
+BOT_TOKEN = "8445605457:AAGgnZIby2wKqSS5reWQ9KfE-KlPay2vh4M"
 
 # === Cloudflare Worker URL ===
 WORKER_URL = "https://moviestream.dawerraza068.workers.dev"

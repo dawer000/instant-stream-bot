@@ -1,6 +1,6 @@
 import os
 import threading
-from flask import Flask, Response, request
+from flask import Flask, request, Response
 from pyrogram import Client, filters
 
 # === Telegram Config ===
@@ -26,10 +26,9 @@ async def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
-    # Direct Cloudflare Worker instant-play link
+    # Direct Cloudflare Worker instant play link
     stream_url = f"{WORKER_URL}/stream/{file_id}"
 
-    # Send reply with instant-play link
     await message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
         f"📁 `{file_name}`\n"
@@ -37,11 +36,12 @@ async def handle_media(client, message):
         disable_web_page_preview=True
     )
 
-# --- Stream endpoint (Railway still handles original stream for Worker) ---
+# --- Stream endpoint (Railway still serves original stream for Worker) ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
     range_header = request.headers.get("Range", None)
     byte1, byte2 = 0, None
+
     if range_header:
         import re
         m = re.search(r'bytes=(\d+)-(\d*)', range_header)
@@ -53,9 +53,8 @@ def stream(file_id):
 
     def generate():
         try:
-            # Use async generator correctly without await
-            stream_gen = bot.stream_media(file_id, offset=byte1)
-            for chunk in stream_gen:  # normal for loop, no await
+            # Stream from Telegram directly, offset applied
+            for chunk in bot.stream_media(file_id, offset=byte1):
                 yield chunk
         except Exception as e:
             print(f"❌ Stream Error: {e}")
@@ -66,13 +65,13 @@ def stream(file_id):
         resp.headers.add('Accept-Ranges', 'bytes')
     return resp
 
-# --- Run Flask using Railway's dynamic PORT ---
+# --- Run Flask on Railway dynamic PORT ---
 def run_flask():
-    port = int(os.environ.get("PORT", 5000))  # Railway sets PORT automatically
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, threaded=True)
 
 if __name__ == "__main__":
-    # Start Flask in a separate thread
+    # Start Flask in background
     threading.Thread(target=run_flask).start()
     print("🚀 Instant Stream Bot Running on Railway + Worker")
 

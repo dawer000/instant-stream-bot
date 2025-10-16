@@ -1,3 +1,4 @@
+import os
 import threading
 from flask import Flask, request, Response
 from pyrogram import Client, filters
@@ -13,7 +14,7 @@ bot = Client("instant_stream_bot", api_id=API_ID, api_hash=API_HASH, bot_token=B
 
 @app.route("/")
 def home():
-    return "✅ Instant Telegram Stream Bot Running!"
+    return "✅ Instant Telegram Stream Bot Running on Railway!"
 
 # --- Handle media messages ---
 @bot.on_message(filters.video | filters.document)
@@ -22,8 +23,10 @@ def handle_media(client, message):
     file_id = media.file_id
     file_name = media.file_name or "video.mp4"
 
-    # Generate instant stream link
-    stream_url = f"http://127.0.0.1:8000/stream/{file_id}"
+    # Railway public base URL (update this with your Railway app URL)
+    BASE_URL = os.environ.get("RAILWAY_URL", "https://instant-stream-bot-production.up.railway.app")
+    stream_url = f"{BASE_URL}/stream/{file_id}"
+
     message.reply_text(
         f"🎬 **Your Stream is Ready!**\n\n"
         f"📁 `{file_name}`\n"
@@ -34,23 +37,20 @@ def handle_media(client, message):
 # --- Stream endpoint (instant play with chunks from Telegram) ---
 @app.route("/stream/<file_id>")
 def stream(file_id):
-    range_header = request.headers.get("Range", None)
-
     def generate():
         try:
-            # Stream directly from Telegram in chunks
             for chunk in bot.stream_media(file_id):
                 yield chunk
         except Exception as e:
             print(f"❌ Stream Error: {e}")
-
     return Response(generate(), mimetype="video/mp4")
 
-# --- Run Flask in background ---
+# --- Run Flask using Railway's dynamic PORT ---
 def run_flask():
-    app.run(host="0.0.0.0", port=8000, threaded=True)
+    port = int(os.environ.get("PORT", 5000))  # Railway sets PORT automatically
+    app.run(host="0.0.0.0", port=port, threaded=True)
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
-    print("🚀 Instant Stream Bot Running at http://127.0.0.1:8000/")
+    print("🚀 Instant Stream Bot Running on Railway")
     bot.run()

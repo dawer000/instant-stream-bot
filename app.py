@@ -24,8 +24,9 @@ def handle_media(client, message):
     file_name = media.file_name or "video.mp4"
 
     # Railway public base URL (update this with your Railway app URL)
-   BASE_URL = "https://moviestream.dawerraza068.workers.dev"
+  BASE_URL = "https://moviestream.dawerraza068.workers.dev"
 stream_url = f"{BASE_URL}/stream/{file_id}"
+
 
 
     message.reply_text(

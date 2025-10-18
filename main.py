@@ -35,11 +35,16 @@ def tg_webhook():
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        subprocess.run([
-            "ffmpeg", "-i", file_url,
-            "-hls_time", "10", "-hls_list_size", "0",
-            "-f", "hls", f"{output_dir}/index.m3u8"
-        ], check=True)
+       subprocess.Popen([
+    "ffmpeg", "-i", local_path,
+    "-c:v", "copy", "-c:a", "aac",
+    "-strict", "-2",
+    "-hls_time", "5",
+    "-hls_list_size", "0",
+    "-hls_flags", "delete_segments",
+    "-f", "hls", hls_playlist
+])
+
     except Exception as e:
         send_message(chat_id, f"❌ Conversion failed: {str(e)}")
         return "ok"

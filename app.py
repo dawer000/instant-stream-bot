@@ -1,49 +1,69 @@
 import os
 import threading
-from flask import Flask
+from flask import Flask, request
 from pyrogram import Client, filters
+import subprocess
 
-# === Telegram Config ===
+# === Telegram User Account Config ===
 API_ID = 22121081
 API_HASH = "40aa45abc830f38901ac455674812256"
-BOT_TOKEN = "8425638442:AAFdXiLbKuN57hM4krrbIf0AT8OqJY0Pe3o"
+SESSION_NAME = "user_session"  # your Pyrogram session file
 
 # === Cloudflare Worker URL ===
 WORKER_URL = "https://moviestream.dawerraza068.workers.dev"
 
 # === Initialize Flask + Pyrogram ===
 app = Flask(__name__)
-bot = Client("instant_stream_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+client = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 
-# --- Telegram Bot Handler ---
-@bot.on_message(filters.video | filters.document)
-async def handle_media(client, message):
+HLS_FOLDER = "hls_videos"
+os.makedirs(HLS_FOLDER, exist_ok=True)
+
+# --- Telegram media handler ---
+@client.on_message(filters.video | filters.document)
+async def handle_media(c, message):
     media = message.video or message.document
-    file_id = media.file_id
     file_name = media.file_name or "video.mp4"
+    local_path = os.path.join(HLS_FOLDER, file_name)
 
-    # Construct instant Worker link
-    stream_url = f"{WORKER_URL}/stream/{file_id}"
+    # Download file
+    await c.download_media(media, file_name=local_path)
 
-    # Reply to user
+    # Decide if HLS needed
+    if os.path.getsize(local_path) > 50*1024*1024:  # >50MB
+        hls_folder = os.path.join(HLS_FOLDER, file_name.split('.')[0])
+        os.makedirs(hls_folder, exist_ok=True)
+        playlist = os.path.join(hls_folder, "index.m3u8")
+
+        subprocess.run([
+            "ffmpeg", "-i", local_path,
+            "-codec: copy", "-start_number", "0",
+            "-hls_time", "10", "-hls_list_size", "0",
+            "-f", "hls", playlist
+        ], check=True)
+
+        stream_url = f"{WORKER_URL}/hls/{file_name.split('.')[0]}/index.m3u8"
+    else:
+        # Small file → direct Telegram
+        stream_url = f"{WORKER_URL}/file?file_id={media.file_id}"
+
     await message.reply_text(
-        f"🎬 **Your Instant Stream Link is Ready!**\n\n"
+        f"🎬 **Stream Ready!**\n"
         f"📁 `{file_name}`\n"
-        f"🌐 Watch instantly:\n👉 {stream_url}",
-        disable_web_page_preview=True
+        f"🌐 Watch here:\n👉 {stream_url}"
     )
 
-# --- Flask Endpoint for Testing ---
+# --- Flask test endpoint ---
 @app.route("/")
 def home():
-    return "✅ Instant Telegram Stream Bot Running!"
+    return "✅ Telegram HLS Stream Server Running!"
 
+# --- Run Flask ---
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, threaded=True)
 
+# --- Start bot + Flask ---
 if __name__ == "__main__":
-    # Run Flask in a thread
     threading.Thread(target=run_flask).start()
-    # Run Telegram bot
-    bot.run()
+    client.run()

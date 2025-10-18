@@ -1,4 +1,9 @@
 #!/bin/bash
-apt-get update
+set -e
+
+# Install FFmpeg
+apt-get update -y
 apt-get install -y ffmpeg
-python main.py
+
+# Print version to confirm installation
+ffmpeg -version

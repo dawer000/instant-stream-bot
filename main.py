@@ -3,8 +3,8 @@ import os, subprocess, requests, uuid
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-APP_URL = os.getenv("APP_URL", "https://instant-stream-bot-production.up.railway.app")
+BOT_TOKEN = "8425638442:AAFdXiLbKuN57hM4krrbIf0AT8OqJY0Pe3o"
+APP_URL = "https://moviestream.dawerraza068.workers.dev"  # Cloudflare Worker
 
 @app.route('/')
 def home():
@@ -34,11 +34,11 @@ def tg_webhook():
         send_message(chat_id, "❌ Could not fetch file from Telegram.")
         return "ok"
 
-    # Download video
     file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
     local_path = f"{file_name}"
     send_message(chat_id, f"⬇️ Downloading `{file_name}` ...")
 
+    # Download the file
     with requests.get(file_url, stream=True) as r:
         with open(local_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -61,7 +61,7 @@ def tg_webhook():
             "-f", "hls", hls_playlist
         ], check=True)
 
-        public_url = f"{APP_URL}/{hls_playlist}"
+        public_url = f"{APP_URL}/hls/{file_id}/index.m3u8"
         send_message(chat_id, f"✅ HLS ready!\n🎬 {public_url}")
 
     except Exception as e:
@@ -73,14 +73,17 @@ def tg_webhook():
 
     return "ok"
 
+
 def get_file_path(file_id):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}"
     res = requests.get(url).json()
     return res["result"]["file_path"] if "result" in res else None
 
+
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": chat_id, "text": text})
+
 
 if __name__ == '__main__':
     os.makedirs("hls", exist_ok=True)

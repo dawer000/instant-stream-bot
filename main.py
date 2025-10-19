@@ -1,14 +1,19 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import os, subprocess, requests, uuid
 
 app = Flask(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-APP_URL = os.getenv("APP_URL", "https://instant-stream-bot-production.up.railway.app")  # Replace with your Railway URL
+APP_URL = os.getenv("APP_URL", "https://instant-stream-bot-production.up.railway.app")  # Replace later
 
 @app.route('/')
 def home():
     return "✅ Telegram HLS Converter is running!"
+
+# ✅ Serve .m3u8 and .ts files publicly
+@app.route('/hls/<path:filename>')
+def serve_hls(filename):
+    return send_from_directory('hls', filename)
 
 @app.route('/tg', methods=['POST'])
 def tg_webhook():
@@ -52,15 +57,15 @@ def tg_webhook():
     try:
         subprocess.run([
             "ffmpeg", "-i", local_path,
-            "-c:v", "copy", "-c:a", "aac",
-            "-strict", "-2",
+            "-c:v", "libx264", "-c:a", "aac",
             "-hls_time", "5",
             "-hls_list_size", "0",
             "-f", "hls", hls_playlist
         ], check=True)
 
-        public_url = f"{APP_URL}/{hls_playlist}"
-        send_message(chat_id, f"✅ HLS ready!\n🎬 {public_url}")
+        # ✅ Correct HLS public link
+        public_url = f"{APP_URL}/hls/{file_id}/index.m3u8"
+        send_message(chat_id, f"✅ Video ready!\n🎬 {public_url}")
 
     except Exception as e:
         send_message(chat_id, f"❌ Conversion failed: {str(e)}")

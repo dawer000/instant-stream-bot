@@ -55,13 +55,17 @@ def tg_webhook():
     send_message(chat_id, "⏳ Converting to HLS...")
 
     try:
-        subprocess.run([
+              subprocess.run([
             "ffmpeg", "-i", local_path,
-            "-c:v", "libx264", "-c:a", "aac",
-            "-hls_time", "5",
-            "-hls_list_size", "0",
-            "-f", "hls", hls_playlist
+            "-preset", "veryfast",
+            "-g", "48", "-sc_threshold", "0",
+            "-map", "0:v:0", "-map", "0:a:0",
+            "-c:v", "libx264", "-c:a", "aac", "-b:a", "128k",
+            "-hls_time", "4", "-hls_playlist_type", "vod",
+            "-hls_segment_filename", f"{output_dir}/segment_%03d.ts",
+            hls_playlist
         ], check=True)
+
 
         # ✅ Correct HLS public link
         public_url = f"{APP_URL}/hls/{file_id}/index.m3u8"
